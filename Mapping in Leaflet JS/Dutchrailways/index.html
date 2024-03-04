@@ -1,0 +1,381 @@
+<DOCTYPE html>
+    <html>
+
+    <head>
+        <title>The Netherlands</title>
+        <script src="https://d3js.org/d3.v6.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+        <style>
+            .area {
+                fill: rgb(196, 228, 255);
+                stroke: lightblue;
+                stroke-width: 0.75px;
+            }
+
+            .city {
+                fill: rgb(228, 88, 8);
+                stroke: red;
+                stroke-width: 0.55px;
+            }
+
+            .office {
+                fill: rgb(196, 228, 255);;
+                opacity: 0.8;
+                stroke: rgb(61, 95, 48);
+                stroke-width: 0.15px;
+            }
+
+            .selectedarea {
+                stroke: #22c74b;
+                stroke-width: 1.8px;
+            }
+
+            .legend-box {
+                position: absolute;
+                top: 30px;
+                left: 40px;
+                opacity: 0.9;
+            }
+
+            .zoom-box {
+                position: absolute;
+                top: 500px;
+                left: 40px;
+                background-color: antiquewhite;
+                padding: 10;
+            }
+
+
+            .zoom-panel {
+                font-size: 20px;
+            }
+
+            .office-box {
+                position: absolute;
+                top: 450px;
+                left: 880px;
+            }
+
+            .office-card {
+                padding: 24px 32px;
+                height: fit-content;
+                width: 400px;
+                background-color: rgb(248, 238, 238);
+                border-radius: 8px;
+                box-shadow: 0px 4px 8px 0px #214b6352;
+            }
+
+            .chartTitle {
+                font-size: 17px;
+                font-weight: 500;
+            }
+
+            .data {
+                display: flex;
+                justify-content: space-between;
+                flex-direction: row;
+                padding-block: 2px;
+                font-size: 14px;
+            }
+
+            .card-data-spacing {
+                padding-block: 14px;
+            }
+
+            .card-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                color: #214b63;
+            }
+
+            .title {
+                font-weight: 600;
+                font-size: 22px;
+            }
+
+        </style>
+    </head>
+
+    <body>
+        <h1>The Netherlands</h1>
+        <div id="map-container"></div>
+        </div>
+        <div class="zoom-box">
+            <div id="zoompanel" class="zoom-panel">
+                <button onclick="zoomIn()" class="zoom-panel" title="Zoom In">+</button>
+                <button onclick="zoomOut()" class="zoom-panel" title="Zoom Out">-</button>
+                <button onclick="reset()" class="zoom-panel" title="Reset">Reset</button>
+            </div>
+            <br />
+            <div id="translatepanel" class="zoom-panel">
+                <button onclick="panMap('left')" class="zoom-panel" title="Translate Left"><- </button>
+                        <button onclick="panMap('up')" class="zoom-panel" title="Translate Up">^</button>
+                        <button onclick="panMap('down')" class="zoom-panel" title="Translate Down">v</button>
+                        <button onclick="panMap('right')" class="zoom-panel" title="Translate Right">-></button>
+            </div>
+        </div>
+        <script>
+            const mapWidth = 1000, mapHeight = 900
+            const initialScale = 144500, centerLat = 4.4, centerLong = 51.83;
+            const titleProperty = "statnaam" // the name of the property in the GeoJSON feature properties to be displayed as hover text
+            const identifyingProperty = "id" // the name of the property in the GeoJSON feature properties to be used for identifying area
+
+            const svg = d3.select("#map-container")
+                .append("svg")
+                .attr("width", mapWidth)
+                .attr("height", mapHeight);
+
+            const maxScaleFactor = 25 // how far and zooming in continue? (what is the maximum magnification factor)
+
+            const areasGroup = svg.append('g'); // create an SVG group to only contain area shapes; the SVG root can contain other (groups of) elements
+            // Append a <rect> element with fill and opacity 0 (invisible) to allow every pixel in the area to be zoomable and draggable 
+            areasGroup.append("rect")
+                .attr("x", 0) // X-coordinate
+                .attr("y", 0) // Y-coordinate
+                .attr("width", mapWidth) // Width
+                .attr("height", mapHeight) // Height
+                .attr("opacity", 0.0) // Opacity set to 0 (invisible)
+                .attr("fill", "white")
+
+            // Function to handle zooming
+            // zooming applies to all paths in a specific group - that includes countries but not legend etc
+            const handleZoom = (event) => {
+                areasGroup.selectAll('path').attr('transform', event.transform); // Apply the zoom transform to path elements in areasGroup (i.e. the area shapes)
+            }
+
+            const zoomBehavior = d3.zoom()
+                .scaleExtent([1, maxScaleFactor])
+                .translateExtent([[0, 0], [mapWidth, mapHeight]])
+                .on("zoom", handleZoom)
+
+            // Attach the zoom behavior to the SVG group that contains all countries (as well as the rectangle that makes sure even every pixel not in a area shape is zoom=enabled) 
+            areasGroup.call(zoomBehavior)
+
+            const zoomOut = () => {
+                areasGroup
+                    .transition()
+                    .call(zoomBehavior.scaleBy, 0.667);
+            }
+
+            const zoomIn = () => {
+                areasGroup
+                    .transition()
+                    .call(zoomBehavior.scaleBy, 1.5);
+            }
+
+            const panMap = (direction) => {
+                const panStep = 50
+                let horizontal = direction == "left" ? panStep : (direction == "right" ? -panStep : 0)
+                let vertical = direction == "up" ? panStep : (direction == "down" ? -panStep : 0)
+                areasGroup
+                    .transition()
+                    .call(zoomBehavior.translateBy, horizontal, vertical);
+            }
+
+            const reset = () => {
+                const transform = d3.zoomIdentity
+                    .translate(0, 0)
+                    .scale(1)
+
+                areasGroup.transition().duration(750)
+                    .call(zoomBehavior.transform, transform);
+            }
+
+
+            // URL of the GeoJSON file
+            const geojsonUrl = "https://cartomap.github.io/nl/wgs84/provincie_2023.geojson";
+            const geojsonCitiesUrl = "https://cartomap.github.io/nl/wgs84/grootstedelijke_agglomeratie_2015.geojson";
+            const geojsonRaildataUrl = "https://raw.githubusercontent.com/lucasjellema/visualize-dutch-railways-on-map/main/driebergen-bgt_spoor.geojson";
+            const geojsonMoreRaildataUrl = "https://raw.githubusercontent.com/lucasjellema/visualize-dutch-railways-on-map/main/nl-west-spoor.geojson"
+            let geojsonareaData
+            let selectedAreas = {}
+            let mostRecentProperty
+            let geoGenerator // path generator, created from projection
+
+            Promise.all([
+                d3.json(geojsonUrl),
+                d3.json(geojsonCitiesUrl),
+                d3.json(geojsonRaildataUrl),
+                d3.json(geojsonMoreRaildataUrl)
+            ])
+                .then(([geojsonData, geojsonCitiesData, geojsonRaildata,geojsonMoreRaildata]) => {
+                    geojsonCitiesData.features.filter((f) => f.properties.statcode != 'GA00').forEach((feature) => {                        
+                        geojsonData.features.push(feature)
+                    })
+                    geojsonData.features = [...geojsonData.features, ...geojsonRaildata.features, ...geojsonMoreRaildata.features];
+
+                    geojsonareaData = geojsonData
+                    redrawMap()
+                    hideCard()
+
+                })
+                .catch(error => {
+                    // Handle errors here
+                    console.error('An error occurred:', error);
+                });
+
+            // Adjust projection based on scale and center of the map 
+            const projection = d3.geoMercator()
+                .scale(initialScale).translate([mapWidth / 2, mapHeight / 2]).center([centerLat, centerLong]);
+            geoGenerator = d3.geoPath()
+                .projection(projection);
+
+            const redrawMap = () => {
+                areasGroup.selectAll("path").remove();
+                areasGroup
+                    .selectAll('path')
+                    .data(geojsonareaData.features)
+                    .join('path')
+                    .attr('d', (d) => geoGenerator(d))
+                    .attr('class', (d) => d.properties['rubriek'] == 'provincie' ? 'area' : (d.properties['rubriek'] == 'grootstedelijke_agglomeratie' ? 'city' : 'office'))
+                    .on('click', handleareaClick)
+                    .append('title')
+                    .text((d) => {
+                        if (d.properties['gml_id']) {
+                          return `${d.properties['bgt-functie']} status: ${d.properties['bgt-status']} relatieve hoogte: ${d.properties['relatieveHoogteligging']}` 
+                        } else return `${d.properties[titleProperty]}`
+                    })
+            }
+
+            const displayProperty = (property) => {
+                mostRecentProperty = property;
+                // find the domain for this property
+                const propertyDomain = d3.extent(geojsonareaData.features, (d) => parseFloat(d.properties[property]))
+                const colorScale = d3.scaleSequential(d3.interpolateBlues).domain(propertyDomain)
+
+                areasGroup
+                    .selectAll('path')
+                    .data(geojsonareaData.features)
+                    .style('fill', (d) => colorScale(parseFloat(d.properties[property])))
+                    .attr('class', 'area')
+                    .select('title')
+                    .text(
+                        (d) => `${d.properties[titleProperty]} (${property}: ${d.properties[property]})`)
+
+            }
+
+            const getareaNodes = () => areasGroup.selectAll('path').data(geojsonareaData.features)
+
+            const getareaNode = (areaId) => getareaNodes()
+                .filter((c) => areaId === c.properties[identifyingProperty])
+
+            const highlightarea = (areaId) => {
+                getareaNode(areaId)
+                    .classed('selectedarea', true)
+            }
+
+            const unhighlightarea = (areaId) => {
+                getareaNode(areaId)
+                    .classed('selectedarea', false)
+            }
+
+            const highlightselectedAreas = () => {
+                getareaNodes()
+                    .filter((c) => selectedAreas[c.properties[identifyingProperty]])
+                    .classed('selectedarea', true)
+            }
+
+            const getOfficeBox = () => document.querySelectorAll('.office-box')[0]
+
+            const showAndSynchronizeCard = (officeProperties) => {
+                getOfficeBox().style.display = 'block'
+                document.getElementById("selectedOfficeName").textContent = officeProperties[titleProperty];
+                document.getElementById("officeAddress").textContent = officeProperties["address"];
+                if (officeProperties['pictureURL']) {
+                    document.getElementById("officePicture").innerHTML = `<img src="${officeProperties['pictureURL']}" class="officePicture"></img>`;
+                } else { document.getElementById("officePicture").innerHTML = "" }
+                let companiesTableHTML = ""
+                for (const company of officeProperties["companies"]) {
+                    companiesTableHTML += `<TR><TD>${company.name}</TD>`
+                    if (company.logoURL) companiesTableHTML += `<TD><img src="${company.logoURL}" class="companyLogo" /></TD>`
+                    if (company.website) companiesTableHTML += `<TD><a href="${company.website}" class="companyWebsite" target="_new">website</a></TD>`
+                    companiesTableHTML += `</TR>`
+                }
+                document.getElementById("companiesTable").innerHTML = companiesTableHTML
+            }
+
+            const hideCard = () => getOfficeBox().style.display = 'none'
+
+            const handleareaClick = (event, d) => {
+                if (d.properties.rubriek == 'conclusion-office-location') { // do nothing if something is clicked that is not an office location
+                    const ctrlPressed = event.ctrlKey
+                    const areaId = d.properties[identifyingProperty]
+                    if (!ctrlPressed) {
+                        // unselect all currently selected countries except the clicked one
+                        for (const key in selectedAreas) {
+                            if (key != areaId) {
+                                unhighlightarea(parseInt(key)); // the key of an object is a string; however, in this case the values are integers, hence the parseInt 
+                                delete selectedAreas[key]
+                            }
+                        }
+                    }
+
+                    if (selectedAreas[areaId]) {
+                        // clicked area was already selected
+                        unhighlightarea(areaId)
+                        delete selectedAreas[areaId]
+                        hideCard()
+                    } else {
+                        highlightarea(areaId)
+                        selectedAreas[areaId] = d
+                        showAndSynchronizeCard(d.properties)
+                    }
+                    zoomToselectedAreas()
+                }
+            }
+
+            const zoomToselectedAreas = () => {
+                if (Object.keys(selectedAreas).length == 0) reset() // no areas are selected
+                else {
+                    const selectedAreasGeoJSON = geojsonareaData.features.filter((c) => selectedAreas[c.properties[identifyingProperty]])
+                    var minX = Number.POSITIVE_INFINITY;
+                    var minY = Number.POSITIVE_INFINITY;
+                    var maxX = Number.NEGATIVE_INFINITY;
+                    var maxY = Number.NEGATIVE_INFINITY;
+                    selectedAreasGeoJSON.forEach((geojson) => { // [process all GeoJSON polygons in all selected countries to find the furthest reaches in terms of X and Y coordinate]
+                        const bounds = geoGenerator.bounds(geojson);
+                        minX = Math.min(minX, bounds[0][0]);
+                        minY = Math.min(minY, bounds[0][1]);
+                        maxX = Math.max(maxX, bounds[1][0]);
+                        maxY = Math.max(maxY, bounds[1][1]);
+                    })
+
+                    const dx = maxX - minX;
+                    const dy = maxY - minY;
+                    const x = (minX + maxX) / 2;
+                    const y = (minY + maxY) / 2;
+                    const newScale = Math.max(1, Math.min(4, 0.9 / Math.max(dx / mapWidth, dy / mapHeight)));
+
+                    const transform = d3.zoomIdentity
+                        .translate(mapWidth / 2, mapHeight / 2) // translate to center of map
+                        .scale(newScale)  // scale to the newScale factor
+                        .translate(-x, -y)   // translate to the newly calculate focus point
+
+                    areasGroup.transition().duration(750).call(zoomBehavior.transform, transform);
+                }
+            }
+
+
+        </script>
+        <div class="office-box">
+            <div class="office-card">
+                <div class="card-top">
+                    <div class="chartTitle"><span id="selectedOfficeName" /></div>
+                </div>
+                <div class="card-data-spacing">
+                    <div class="data">
+                        <div><span id="officeAddress" /></div>
+                    </div>
+                    <div id="officePicture" class="data">
+                    </div>
+                    <div id="companies" class="data">
+                        <table id="companiesTable" class="companies-table"></table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </body>
+
+    </html>
