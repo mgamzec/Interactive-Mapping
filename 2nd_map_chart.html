@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Leaflet Map Example</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        #map { height: 800px; }
+
+        .leaflet-popup-content-wrapper {
+            width: 400px !important;
+            height: 200px !important;
+        }
+
+        .leaflet-popup-content {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div>
+    <input type="checkbox" id="layerToggle" /> Show Layer
+</div>
+
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.6.0/dist/chart.min.js"></script>
+
+<script src="data/shops.js"></script>
+<script src="data/buildings.js"></script>
+
+<script>
+    // Initialize the map
+
+    var customIcon = L.icon({
+        iconUrl: 'icons/icons8-flyer-64.png', // Replace with the path to your custom icon
+        iconSize: [64, 64], // Set the size of the icon
+        iconAnchor: [16, 32] // Set the anchor point of the icon (centered, bottom)
+        });
+
+    var map = L.map('map').setView([35.5, 23.92], 11); // Centered at (latitude, longitude) and zoom level
+
+    // Add a tile layer (OpenStreetMap)
+    //L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    //    maxZoom: 25,
+    //    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    //}).addTo(map);
+
+    var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+    });
+
+    var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+    maxZoom: 20,
+    subdomains:['mt0','mt1','mt2','mt3']
+    }).addTo(map)
+
+
+    var baseMaps = {
+    "OpenStreetMap": osm,
+    "google satellite": googleSat
+};
+
+
+var geojsonFeature = {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample Location",
+        "chartData": [20, 30, 40, 10, 50] // Sample chart data
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [23.7, 35.4]
+      }
+    };
+
+
+// ... (previous Leaflet and GeoJSON setup)
+
+L.geoJSON(geojsonFeature, {
+  onEachFeature: function (feature, layer) {
+    if (feature.properties && feature.properties.chartData) {
+      layer.bindPopup(function (layer) {
+        var popupContent = document.createElement('div');
+        var canvas = document.createElement('canvas');
+        canvas.width = 400; // Adjust as needed
+        canvas.height = 200; // Adjust as needed
+        popupContent.appendChild(canvas);
+
+        var ctx = canvas.getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['A', 'B', 'C', 'D', 'E'],
+            datasets: [{
+              label: 'Chart Data',
+              data: feature.properties.chartData,
+              backgroundColor: 'rgba(120, 152, 35, 0.6)',
+              borderColor: 'rgba(54, 162, 235, 1)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false
+          }
+        });
+
+
+        return popupContent; // Return an empty string to prevent Leaflet from creating its own content
+      });
+    }
+  }
+}).addTo(map);
+
+
+L.control.layers(baseMaps).addTo(map);
+     
+    // Add a pop-up
+    //    var popup = L.popup()
+    //    .setLatLng([51.5, -0.09])
+    //    .setContent('draft  hello ')
+    //    .openOn(map);
+    //
+        //
+</script>
+
+</body>
+</html>

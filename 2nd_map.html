@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Leaflet Map Example</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        #map { height: 800px; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div>
+    <input type="checkbox" id="layerToggle" /> Show Layer
+</div>
+
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+<script src="data/shops.js"></script>
+<script src="data/buildings.js"></script>
+
+<script>
+    // Initialize the map
+
+    var customIcon = L.icon({
+        iconUrl: 'icons/icons8-flyer-64.png', // Replace with the path to your custom icon
+        iconSize: [32, 32], // Set the size of the icon
+        iconAnchor: [16, 32] // Set the anchor point of the icon (centered, bottom)
+        });
+
+    var map = L.map('map').setView([35.5, 23.92], 14); // Centered at (latitude, longitude) and zoom level
+
+    // Add a tile layer (OpenStreetMap)
+    //L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    //    maxZoom: 25,
+    //    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    //}).addTo(map);
+
+    var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+    });
+
+    var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+    maxZoom: 20,
+    subdomains:['mt0','mt1','mt2','mt3']
+    }).addTo(map)
+
+
+    var baseMaps = {
+    "OpenStreetMap": osm,
+    "google satellite": googleSat
+};
+
+    var geojsonLayer = L.geoJSON(shops_data, {
+        pointToLayer: function(feature, latlng) {
+            return L.marker(latlng, {
+            icon: customIcon
+            });
+        },
+        onEachFeature: function(feature, layer) {
+        if (feature.properties && feature.properties.shop && feature.properties.osm_id) {
+        layer.bindPopup('<b>Shop type:</b>' + feature.properties.shop + '<br>'+'<b>osm id:</b>' + feature.properties.osm_id);
+        }
+    }}
+    );
+    geojsonLayer.addTo(map);
+
+    var buildings_layer = L.geoJSON(buidings_data).addTo(map)
+
+
+      // Function to toggle layer visibility
+    var overlays = {
+        "Marker": geojsonLayer,
+        "polygons": buildings_layer
+    };
+
+L.control.layers(baseMaps, overlays).addTo(map);
+     
+    // Add a pop-up
+    //    var popup = L.popup()
+    //    .setLatLng([51.5, -0.09])
+    //    .setContent('draft  hello ')
+    //    .openOn(map);
+    //
+        //
+</script>
+
+</body>
+</html>
